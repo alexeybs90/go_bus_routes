@@ -1,0 +1,11 @@
+env: "local" # local, dev, prod
+server:
+  port: "8081"
+  timeout: 4s
+  idle_timeout: 60s
+storage:
+  host: "PostgreSQL-10"
+  port: "5432"
+  user: "bus_user"
+  password: "1234"
+  dbname: "bus_db"
