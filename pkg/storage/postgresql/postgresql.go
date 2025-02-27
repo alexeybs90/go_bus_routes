@@ -2,10 +2,12 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/alexeybs90/go_bus_routes/internal/config"
+	"github.com/alexeybs90/go_bus_routes/pkg/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +22,7 @@ type Client interface {
 
 type Storage struct {
 	client Client
+	logger logger.Logger
 }
 
 func (s *Storage) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
@@ -50,4 +53,17 @@ func NewClient(ctx context.Context, cfg config.Storage) (*Storage, error) {
 	}
 
 	return &Storage{client: dbpool}, nil
+}
+
+func (s *Storage) LogDB(err error) {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		pgErr = err.(*pgconn.PgError)
+		s.logger.Error(
+			fmt.Sprintf(
+				"SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s",
+				pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
+			),
+		)
+	}
 }
