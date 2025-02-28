@@ -1,6 +1,6 @@
 env: "local" # local, dev, prod
 server:
-  port: "8081"
+  address: "localhost:8081"
   timeout: 4s
   idle_timeout: 60s
 storage:

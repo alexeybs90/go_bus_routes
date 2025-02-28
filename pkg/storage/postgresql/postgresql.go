@@ -13,15 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Client interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
-	Begin(ctx context.Context) (pgx.Tx, error)
-}
-
 type Storage struct {
-	client Client
+	client *pgxpool.Pool
 	logger logger.Logger
 }
 
