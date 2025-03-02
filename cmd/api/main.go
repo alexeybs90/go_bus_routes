@@ -43,7 +43,7 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	handler := handlers.NewHandler(repRoute, log)
-	router.Get("/api/routes", handler.GetList)
+	handler.Register(router)
 
 	server := &http.Server{
 		Addr:         cfg.Server.Address,

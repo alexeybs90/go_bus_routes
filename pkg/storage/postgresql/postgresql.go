@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alexeybs90/go_bus_routes/internal/config"
-	"github.com/alexeybs90/go_bus_routes/pkg/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,7 +14,6 @@ import (
 
 type Storage struct {
 	client *pgxpool.Pool
-	logger logger.Logger
 }
 
 func (s *Storage) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
@@ -34,6 +32,18 @@ func (s *Storage) Begin(ctx context.Context) (pgx.Tx, error) {
 	return s.client.Begin(ctx)
 }
 
+func (s *Storage) ErrorDetails(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		pgErr = err.(*pgconn.PgError)
+		return fmt.Sprintf(
+			"SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s",
+			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
+		)
+	}
+	return err.Error()
+}
+
 func NewClient(ctx context.Context, cfg config.Storage) (*Storage, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -46,17 +56,4 @@ func NewClient(ctx context.Context, cfg config.Storage) (*Storage, error) {
 	}
 
 	return &Storage{client: dbpool}, nil
-}
-
-func (s *Storage) LogDB(err error) {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		pgErr = err.(*pgconn.PgError)
-		s.logger.Error(
-			fmt.Sprintf(
-				"SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s",
-				pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
-			),
-		)
-	}
 }
