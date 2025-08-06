@@ -7,6 +7,7 @@ import (
 	"github.com/alexeybs90/go_bus_routes/internal/model"
 	"github.com/alexeybs90/go_bus_routes/pkg/logger"
 	"github.com/alexeybs90/go_bus_routes/pkg/storage/postgresql"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -158,6 +159,41 @@ func (r *repository) Update(ctx context.Context, item model.Model) error {
 		return err
 	}
 	return nil
+}
+
+func (r *repository) FindBus(ctx context.Context, fromId int, toId int) ([]model.Model, error) {
+	sqlFind := `SELECT r.id, r.name FROM route_stations rs
+			JOIN route r ON r.id=rs.route_id
+			WHERE rs.station_id=@fromId OR rs.station_id=@toId
+			GROUP BY r.id
+			HAVING COUNT(DISTINCT rs.station_id)=2
+			AND
+			MIN (CASE WHEN rs.station_id=@fromId THEN rs.pos END) < MIN (CASE WHEN rs.station_id=@toId THEN rs.pos END)
+	ORDER BY name`
+	args := pgx.NamedArgs{
+		"fromId": fromId,
+		"toId":   toId,
+	}
+	rowsFind, err := r.client.Query(ctx, sqlFind, args)
+	if err != nil {
+		r.LogDB(err)
+		return nil, err
+	}
+	defer rowsFind.Close()
+
+	routes := make([]model.Model, 0)
+
+	for rowsFind.Next() {
+		var route model.Route
+		err = rowsFind.Scan(&route.Id, &route.Name)
+		if err != nil {
+			r.LogDB(err)
+			return nil, err
+		}
+		routes = append(routes, &route)
+	}
+
+	return routes, nil
 }
 
 func (r *repository) LogDB(err error) {

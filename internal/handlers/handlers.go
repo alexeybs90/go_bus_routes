@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/alexeybs90/go_bus_routes/internal/model"
 	"github.com/alexeybs90/go_bus_routes/pkg/logger"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 const (
@@ -15,9 +19,14 @@ const (
 	stationEntity = "station"
 )
 
+type Service interface {
+	FindBus(ctx context.Context, fromId int, toId int) ([]model.Model, error)
+}
+
 type handlers struct {
 	repository model.Repository
 	logger     logger.Logger
+	service    Service
 }
 
 type response struct {
@@ -40,10 +49,11 @@ const (
 	StatusError = "Error"
 )
 
-func NewHandler(repository model.Repository, logger logger.Logger) *handlers {
+func NewHandler(repository model.Repository, logger logger.Logger, service Service) *handlers {
 	return &handlers{
 		repository: repository,
 		logger:     logger,
+		service:    service,
 	}
 }
 
@@ -59,6 +69,8 @@ func (h *handlers) Register(router *chi.Mux) {
 	router.Post("/api/routes", h.CreateRoute)
 	router.Put("/api/routes", h.UpdateRoute)
 	router.Delete("/api/routes/{id}", h.DeleteRoute)
+
+	router.Get("/api/find-bus", h.FindBus)
 }
 
 func (h *handlers) responseError(err error, w http.ResponseWriter) {
@@ -78,6 +90,31 @@ func (h *handlers) doServerError(log logger.Logger, err error, w http.ResponseWr
 	log.Error(err.Error())
 	w.WriteHeader(http.StatusBadGateway)
 	h.responseError(err, w)
+}
+
+func (h *handlers) FindBus(w http.ResponseWriter, r *http.Request) {
+	log := h.logger.With(
+		slog.String("api", "handlers.FindBus"),
+		slog.String("request_id", middleware.GetReqID(r.Context())),
+	)
+	w.Header().Set("Content-Type", contentType)
+
+	fromId, _ := strconv.Atoi(r.URL.Query().Get("from_id"))
+	toId, _ := strconv.Atoi(r.URL.Query().Get("to_id"))
+	items, err := h.service.FindBus(r.Context(), fromId, toId)
+
+	if err != nil {
+		h.doServerError(log, err, w)
+		return
+	}
+
+	log.Info("done ok!")
+	resp := json.NewEncoder(w)
+	w.WriteHeader(http.StatusOK)
+	resp.Encode(responseItems{
+		response: response{Status: StatusOK},
+		Items:    items,
+	})
 }
 
 func (h *handlers) GetRoutes(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 	"github.com/alexeybs90/go_bus_routes/internal/config"
 	"github.com/alexeybs90/go_bus_routes/internal/handlers"
 	"github.com/alexeybs90/go_bus_routes/internal/repository"
+	"github.com/alexeybs90/go_bus_routes/internal/services"
 	"github.com/alexeybs90/go_bus_routes/pkg/logger"
 	"github.com/alexeybs90/go_bus_routes/pkg/storage/postgresql"
 	"github.com/go-chi/chi/v5"
@@ -35,7 +36,8 @@ func New(ctx context.Context, cfg config.Config) *App {
 		log.Error(err.Error())
 	}
 
-	repRoute := repository.NewRepository(client, log)
+	repo := repository.NewRepository(client, log)
+	service := services.New(repo, log)
 
 	router := chi.NewRouter()
 
@@ -44,7 +46,7 @@ func New(ctx context.Context, cfg config.Config) *App {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	handler := handlers.NewHandler(repRoute, log)
+	handler := handlers.NewHandler(repo, log, service)
 	handler.Register(router)
 
 	server := &http.Server{

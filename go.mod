@@ -1,6 +1,6 @@
 module github.com/alexeybs90/go_bus_routes
 
-go 1.23.6
+go 1.24.0
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect

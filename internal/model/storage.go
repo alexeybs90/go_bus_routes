@@ -12,4 +12,5 @@ type Repository interface {
 	GetStations(ctx context.Context) ([]Model, error)
 	Update(ctx context.Context, r Model) error
 	Delete(ctx context.Context, r Model) error
+	FindBus(ctx context.Context, fromId int, toId int) ([]Model, error)
 }
