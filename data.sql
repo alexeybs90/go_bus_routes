@@ -68,3 +68,8 @@ INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (1, 
 INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (2, 0, '08:15:00');
 INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (3, 0, '08:30:00');
 INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (4, 0, '08:45:00');
+
+INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (1, 1, '20:00:00');
+INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (2, 1, '20:15:00');
+INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (3, 1, '20:30:00');
+INSERT INTO route_stations_time (route_station_id, queue, stop_time) VALUES (4, 1, '20:45:00');

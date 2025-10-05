@@ -38,9 +38,12 @@ func (r *repository) Delete(ctx context.Context, item model.Model) error {
 }
 
 func (r *repository) GetRoutes(ctx context.Context) ([]model.Model, error) {
-	sqlStation := `SELECT s.id, s.name, rs.route_id FROM route_stations rs
-			JOIN station s ON s.id=rs.station_id
-	ORDER BY pos`
+	sqlStation := `SELECT s.id, s.name, array_remove(array_agg(t.stop_time), NULL) AS stop_time, rs.route_id
+		FROM route_stations rs
+		JOIN station s ON s.id=rs.station_id
+		LEFT JOIN route_stations_time t ON t.route_station_id=rs.id
+		GROUP BY s.id, rs.route_id
+		ORDER BY id`
 	rowsStation, err := r.client.Query(ctx, sqlStation)
 	if err != nil {
 		r.LogDB(err)
@@ -51,7 +54,7 @@ func (r *repository) GetRoutes(ctx context.Context) ([]model.Model, error) {
 	for rowsStation.Next() {
 		var st model.Station
 		var routeId int
-		err = rowsStation.Scan(&st.Id, &st.Name, &routeId)
+		err = rowsStation.Scan(&st.Id, &st.Name, &st.StopTime, &routeId)
 		if err != nil {
 			r.LogDB(err)
 			return nil, err
@@ -94,9 +97,13 @@ func (r *repository) GetRoute(ctx context.Context, id int) (model.Model, error) 
 		return &item, err
 	}
 
-	sqlStation := `SELECT s.id, s.name FROM route_stations rs
-		JOIN station s ON s.id=rs.station_id WHERE rs.route_id=$1
-		ORDER BY pos`
+	sqlStation := `SELECT s.id, s.name, array_remove(array_agg(t.stop_time), NULL) AS stop_time
+		FROM route_stations rs
+		INNER JOIN station s ON s.id=rs.station_id
+		LEFT JOIN route_stations_time t ON t.route_station_id=rs.id
+		WHERE rs.route_id=$1
+		GROUP BY s.id
+		ORDER BY s.id`
 	rowsStation, err := r.client.Query(ctx, sqlStation, id)
 	if err != nil {
 		r.LogDB(err)
@@ -106,7 +113,7 @@ func (r *repository) GetRoute(ctx context.Context, id int) (model.Model, error) 
 	item.Stations = []model.Station{}
 	for rowsStation.Next() {
 		var st model.Station
-		err = rowsStation.Scan(&st.Id, &st.Name)
+		err = rowsStation.Scan(&st.Id, &st.Name, &st.StopTime)
 		if err != nil {
 			r.LogDB(err)
 			return &item, err
@@ -162,13 +169,15 @@ func (r *repository) Update(ctx context.Context, item model.Model) error {
 }
 
 func (r *repository) FindBus(ctx context.Context, fromId int, toId int) ([]model.Model, error) {
-	sqlFind := `SELECT r.id, r.name FROM route_stations rs
+	sqlFind := `SELECT r.id, r.name
+			FROM route_stations rs
 			JOIN route r ON r.id=rs.route_id
 			WHERE rs.station_id=@fromId OR rs.station_id=@toId
 			GROUP BY r.id
 			HAVING COUNT(DISTINCT rs.station_id)=2
 			AND
-			MIN (CASE WHEN rs.station_id=@fromId THEN rs.pos END) < MIN (CASE WHEN rs.station_id=@toId THEN rs.pos END)
+			MIN (CASE WHEN rs.station_id=@fromId THEN rs.pos END)
+			 < MIN (CASE WHEN rs.station_id=@toId THEN rs.pos END)
 	ORDER BY name`
 	args := pgx.NamedArgs{
 		"fromId": fromId,
